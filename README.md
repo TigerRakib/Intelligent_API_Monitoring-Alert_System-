@@ -27,6 +27,12 @@ Email notifications and a dashboard are planned for later steps.
 - Prisma 6
 - SQLite
 - OpenAI SDK
+- Pino and pino-http
+- Vitest and Supertest
+
+## Logging
+
+The application uses Pino for structured logs and pino-http for request logs. Development logs are formatted with pino-pretty; production logs are emitted as JSON. Sensitive headers and common credential fields are redacted. Monitoring persistence logs batch processing, event creation, alert creation, deduplication, completion, and failures without logging raw monitoring payloads.
 
 ## Database
 
@@ -38,7 +44,7 @@ The schema is defined in [prisma/schema.prisma](./prisma/schema.prisma) and cont
 - `MonitoringEvent`: validated API observations
 - `Alert`: detected anomaly records
 
-When `npm run monitor` runs, the validated observations and detection results are saved in one Prisma transaction. Each API is upserted into `ApiService`, each observation is inserted into `MonitoringEvent`, and each detected anomaly is inserted into `Alert`. If any insert fails, the transaction rolls back.
+When `npm run monitor` runs, the validated observations and detection results are saved in one Prisma transaction. Each API is upserted into `ApiService`, each observation is inserted into `MonitoringEvent`, and each detected anomaly is inserted or deduplicated in `Alert`. An active alert is reused for the same API and anomaly type. If any write fails, the transaction rolls back.
 
 After Prisma dependencies are installed, initialize the client and database with:
 
@@ -63,6 +69,17 @@ OPENAI_MODEL=gpt-4.1-mini
 Anomalies are persisted before AI generation. Normal observations do not call the LLM. If the key is missing, invalid, or the request times out, a deterministic fallback explanation is saved with `aiStatus` set to `FALLBACK`.
 
 SQLite is appropriate for this assignment because it is simple to run locally and supports relational tables, migrations, and transactions. PostgreSQL would be a better choice for a high-concurrency, multi-instance production deployment.
+
+## Testing
+
+Run the automated suite and TypeScript validation:
+
+```bash
+npm test
+npm run typecheck
+```
+
+The test suite covers anomaly detection, Zod input validation, health and 404 responses, malformed JSON handling, `/alerts` query validation and repository failures, and deterministic AI fallback behavior. HTTP tests use Supertest and mock the alert repository so they do not require a live SQLite connection.
 
 ## Project structure
 

@@ -1,10 +1,19 @@
 import express from "express";
+import pinoHttp from "pino-http";
 
 import { errorHandler } from "./middleware/error.middleware";
 import alertRoutes from "./routes/alert.routes";
 import monitorRoutes from "./routes/monitor.routes";
+import { logger } from "./utils/logger";
 
 const app = express();
+
+app.use(
+  pinoHttp({
+    logger,
+    autoLogging: true,
+  }),
+);
 
 app.use(express.json({ limit: "100kb" }));
 

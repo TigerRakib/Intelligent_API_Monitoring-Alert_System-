@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { DetectionResult } from "../detectors/anomaly.detector";
 import type { MonitorRecord } from "../schemas/monitor.schema";
+import { logger } from "../utils/logger";
 
 const aiAlertSchema = z.object({
   title: z.string().trim().min(1),
@@ -55,7 +56,7 @@ export async function generateAIAlert(
   });
 
   if (!client) {
-    console.warn("OpenAI API key unavailable; using fallback.");
+    logger.warn("OpenAI API key unavailable; using fallback");
     return fallback();
   }
 
@@ -96,9 +97,9 @@ export async function generateAIAlert(
       source: "AI",
     };
   } catch (error) {
-    console.error(
-      "AI generation failed; using fallback:",
-      error instanceof Error ? error.message : error,
+    logger.error(
+      { err: error },
+      "AI generation failed; using fallback",
     );
     return fallback();
   }
