@@ -14,7 +14,9 @@ A modular Node.js, Express, and TypeScript backend that loads API observations f
 - Prisma + SQLite persistence for observations and alerts
 - Structured AI alert explanations with deterministic fallback
 
-Email notifications and a dashboard are planned for later steps.
+Email notifications are planned as an optional later step.
+
+The React dashboard is available in [frontend/](./frontend/). It reads active alerts from the backend `/alerts` endpoint and supports severity, status, and API filters.
 
 ## Technology stack
 
@@ -137,7 +139,15 @@ npm start
 
 # Load the JSON dataset and run anomaly detection
 npm run monitor
+
+# Run the React dashboard on http://localhost:5173
+npm run frontend:dev
+
+# Build the React dashboard for production
+npm run frontend:build
 ```
+
+Run the backend and frontend in separate terminals. The Vite development server proxies `/api/alerts` to the backend at `http://localhost:3000/alerts`.
 
 ## Input format
 
