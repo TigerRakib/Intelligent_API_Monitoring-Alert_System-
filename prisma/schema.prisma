@@ -36,7 +36,13 @@ model Alert {
   message   String
   createdAt DateTime @default(now())
 
+  aiTitle          String?
+  aiExplanation    String?
+  aiRecommendation String?
+  aiStatus         String   @default("PENDING")
+
   event MonitoringEvent @relation(fields: [eventId], references: [id])
 
   @@index([eventId, createdAt])
+  @@index([status, createdAt])
 }

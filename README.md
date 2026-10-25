@@ -12,8 +12,9 @@ A modular Node.js, Express, and TypeScript backend that loads API observations f
 - API-specific threshold overrides
 - Console monitoring report
 - Prisma + SQLite persistence for observations and alerts
+- Structured AI alert explanations with deterministic fallback
 
-LLM-generated alert explanations, email notifications, and a dashboard are planned for later steps.
+Email notifications and a dashboard are planned for later steps.
 
 ## Technology stack
 
@@ -25,6 +26,7 @@ LLM-generated alert explanations, email notifications, and a dashboard are plann
 - tsx for development execution
 - Prisma 6
 - SQLite
+- OpenAI SDK
 
 ## Database
 
@@ -50,6 +52,15 @@ To inspect the database visually:
 ```bash
 npm run prisma:studio
 ```
+
+For AI alert explanations, configure these optional values in `.env`:
+
+```env
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+Anomalies are persisted before AI generation. Normal observations do not call the LLM. If the key is missing, invalid, or the request times out, a deterministic fallback explanation is saved with `aiStatus` set to `FALLBACK`.
 
 SQLite is appropriate for this assignment because it is simple to run locally and supports relational tables, migrations, and transactions. PostgreSQL would be a better choice for a high-concurrency, multi-instance production deployment.
 

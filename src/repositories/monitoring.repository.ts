@@ -7,6 +7,7 @@ import type { MonitorRecord } from "../schemas/monitor.schema";
 export interface PersistenceSummary {
   observationsSaved: number;
   alertsSaved: number;
+  eventIds: number[];
 }
 
 export async function saveMonitoringBatch(
@@ -19,6 +20,7 @@ export async function saveMonitoringBatch(
 
   return prisma.$transaction(async (transaction) => {
     let alertsSaved = 0;
+    const eventIds: number[] = [];
 
     for (let index = 0; index < records.length; index += 1) {
       const record = records[index];
@@ -39,6 +41,7 @@ export async function saveMonitoringBatch(
           observedAt: new Date(result.observed_at),
         },
       });
+      eventIds.push(event.id);
 
       const alertData: Prisma.AlertCreateManyInput[] = result.anomalies.map(
         (anomaly) => ({
@@ -58,6 +61,7 @@ export async function saveMonitoringBatch(
     return {
       observationsSaved: records.length,
       alertsSaved,
+      eventIds,
     };
   });
 }
