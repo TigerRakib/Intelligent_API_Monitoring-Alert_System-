@@ -11,8 +11,9 @@ A modular Node.js, Express, and TypeScript backend that loads API observations f
 - Configurable anomaly detection
 - API-specific threshold overrides
 - Console monitoring report
+- Prisma + SQLite persistence for observations and alerts
 
-PostgreSQL persistence, LLM-generated alert explanations, email notifications, and a dashboard are planned for later steps.
+LLM-generated alert explanations, email notifications, and a dashboard are planned for later steps.
 
 ## Technology stack
 
@@ -22,6 +23,35 @@ PostgreSQL persistence, LLM-generated alert explanations, email notifications, a
 - Zod
 - dotenv
 - tsx for development execution
+- Prisma 6
+- SQLite
+
+## Database
+
+The project uses Prisma with SQLite for local development and assignment delivery. SQLite stores data in the local `dev.db` file, so no separate database server is required.
+
+The schema is defined in [prisma/schema.prisma](./prisma/schema.prisma) and contains:
+
+- `ApiService`: monitored API definitions
+- `MonitoringEvent`: validated API observations
+- `Alert`: detected anomaly records
+
+When `npm run monitor` runs, the validated observations and detection results are saved in one Prisma transaction. Each API is upserted into `ApiService`, each observation is inserted into `MonitoringEvent`, and each detected anomaly is inserted into `Alert`. If any insert fails, the transaction rolls back.
+
+After Prisma dependencies are installed, initialize the client and database with:
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate
+```
+
+To inspect the database visually:
+
+```bash
+npm run prisma:studio
+```
+
+SQLite is appropriate for this assignment because it is simple to run locally and supports relational tables, migrations, and transactions. PostgreSQL would be a better choice for a high-concurrency, multi-instance production deployment.
 
 ## Project structure
 

@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ApiService {
+  id     Int               @id @default(autoincrement())
+  name   String            @unique
+  events MonitoringEvent[]
+}
+
+model MonitoringEvent {
+  id              Int      @id @default(autoincrement())
+  apiServiceId    Int
+  responseTimeMs  Float
+  statusCode      Int
+  recordsReturned Int
+  observedAt      DateTime @default(now())
+
+  apiService ApiService @relation(fields: [apiServiceId], references: [id])
+  alerts     Alert[]
+
+  @@index([apiServiceId, observedAt])
+}
+
+model Alert {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  type      String
+  severity  String
+  status    String   @default("ACTIVE")
+  message   String
+  createdAt DateTime @default(now())
+
+  event MonitoringEvent @relation(fields: [eventId], references: [id])
+
+  @@index([eventId, createdAt])
+}
