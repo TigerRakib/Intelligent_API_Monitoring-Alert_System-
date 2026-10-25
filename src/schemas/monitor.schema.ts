@@ -10,6 +10,9 @@ export const monitorRecordSchema = z.strictObject({
 export const monitorBatchSchema = z.array(monitorRecordSchema).min(1).max(100);
 
 // Backward-compatible alias for the single-record controller flow.
-export const monitorInputSchema = monitorRecordSchema;
+export const monitorInputSchema = z.union([
+  monitorRecordSchema,
+  monitorBatchSchema,
+]);
 
 export type MonitorRecord = z.infer<typeof monitorRecordSchema>;

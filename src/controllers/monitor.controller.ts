@@ -1,10 +1,11 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { monitorInputSchema } from "../schemas/monitor.schema";
+import { processMonitoringRecords } from "../services/monitor.service";
 
-export function monitorController(
+export async function monitorController(
   req: Request,
   res: Response
-): void {
+): Promise<void> {
   const result = monitorInputSchema.safeParse(req.body);
 
   if (!result.success) {
@@ -23,10 +24,21 @@ export function monitorController(
     ? result.data
     : [result.data];
 
+  const summary = await processMonitoringRecords(records);
+  const anomaliesDetected = summary.results.reduce(
+    (total, detection) => total + detection.anomalies.length,
+    0,
+  );
+
   res.status(200).json({
     success: true,
-    message: "Monitoring data validated successfully",
+    message: "Monitoring data processed successfully",
     total_received: records.length,
-    data: records,
+    observations_saved: summary.observationsSaved,
+    anomalies_detected: anomaliesDetected,
+    alerts_processed: summary.alertsProcessed,
+    ai_generated: summary.aiGenerated,
+    fallback_generated: summary.fallbackGenerated,
+    data: summary.results,
   });
 }

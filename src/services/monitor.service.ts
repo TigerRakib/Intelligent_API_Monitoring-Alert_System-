@@ -6,9 +6,20 @@ import {
 } from "../detectors/anomaly.detector";
 import { saveMonitoringBatch } from "../repositories/monitoring.repository";
 import { saveAIExplanation } from "../repositories/alert.repository";
+import type { MonitorRecord } from "../schemas/monitor.schema";
 
-export async function processMonitoringInput(): Promise<DetectionResult[]> {
-  const records = await loadApiResponses();
+export interface MonitoringProcessingSummary {
+  records: MonitorRecord[];
+  results: DetectionResult[];
+  observationsSaved: number;
+  alertsProcessed: number;
+  aiGenerated: number;
+  fallbackGenerated: number;
+}
+
+export async function processMonitoringRecords(
+  records: MonitorRecord[],
+): Promise<MonitoringProcessingSummary> {
   const results = detectBatchAnomalies(records);
   const persistence = await saveMonitoringBatch(records, results);
 
@@ -62,5 +73,19 @@ export async function processMonitoringInput(): Promise<DetectionResult[]> {
   console.log("AI explanations:", aiGenerated);
   console.log("Fallback explanations:", fallbackGenerated);
 
-  return results;
+  return {
+    records,
+    results,
+    observationsSaved: persistence.observationsSaved,
+    alertsProcessed: persistence.alertsSaved,
+    aiGenerated,
+    fallbackGenerated,
+  };
+}
+
+export async function processMonitoringInput(): Promise<DetectionResult[]> {
+  const records = await loadApiResponses();
+  const summary = await processMonitoringRecords(records);
+
+  return summary.results;
 }

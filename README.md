@@ -2,6 +2,8 @@
 
 A modular Node.js, Express, and TypeScript backend that loads API observations from a static JSON file, validates them with Zod, and detects abnormal API behavior using configurable rules.
 
+Repository: [Intelligent API Monitoring & Alert System](https://github.com/TigerRakib/Intelligent_API_Monitoring-Alert_System-)
+
 ## Current status
 
 - TypeScript and Node.js project setup
@@ -229,7 +231,37 @@ JSON file
   → monitoring report
 ```
 
-The loader and detector are separate so the detection engine can later receive observations from an HTTP endpoint, message queue, or database without changing its core logic.
+The loader and detector share the same monitoring service used by `POST /monitor`, so observations from the static JSON file and HTTP requests follow the same detection, persistence, deduplication, and AI explanation flow.
+
+## Frontend JSON upload
+
+Start the backend and React dashboard in separate terminals:
+
+```bash
+npm run dev
+npm run frontend:dev
+```
+
+Open `http://localhost:5173`, select **Upload JSON**, and choose a JSON file containing either one observation or an array of 1 to 100 observations. The dashboard sends the data to `POST /monitor`, then refreshes the alert list.
+
+Example upload file:
+
+```json
+[
+  {
+    "api_name": "PatientDataAPI",
+    "response_time_ms": 1200,
+    "status_code": 200,
+    "records_returned": 50
+  },
+  {
+    "api_name": "AppointmentAPI",
+    "response_time_ms": 5500,
+    "status_code": 500,
+    "records_returned": 0
+  }
+]
+```
 
 ## Scalability considerations
 

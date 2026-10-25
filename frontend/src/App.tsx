@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -11,6 +11,7 @@ import {
   Server,
   ShieldAlert,
   Sparkles,
+  Upload,
 } from "lucide-react";
 
 type Severity = "CRITICAL" | "WARNING";
@@ -40,6 +41,13 @@ type AlertResponse = {
   alerts: Alert[];
 };
 
+type MonitorRecord = {
+  api_name: string;
+  response_time_ms: number;
+  status_code: number;
+  records_returned: number;
+};
+
 const API_BASE = "/api";
 
 function formatTime(value: string) {
@@ -62,6 +70,15 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recordForm, setRecordForm] = useState<MonitorRecord>({
+    api_name: "",
+    response_time_ms: 0,
+    status_code: 200,
+    records_returned: 0,
+  });
 
   const loadAlerts = useCallback(async () => {
     setLoading(true);
@@ -88,6 +105,66 @@ function App() {
 
   useEffect(() => void loadAlerts(), [loadAlerts]);
 
+  async function handleJsonUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploading(true);
+    setUploadMessage("");
+    setError("");
+
+    try {
+      const parsed = JSON.parse(await file.text()) as unknown;
+      const records = (Array.isArray(parsed) ? parsed : [parsed]) as MonitorRecord[];
+      if (records.length === 0 || records.length > 100) {
+        throw new Error("Upload between 1 and 100 monitoring records.");
+      }
+
+      const response = await fetch(`${API_BASE}/monitor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Array.isArray(parsed) ? records : records[0]),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(result.message || `Upload failed with status ${response.status}`);
+
+      setUploadMessage(`${records.length} record${records.length === 1 ? "" : "s"} processed successfully.`);
+      setPage(1);
+      await loadAlerts();
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Unable to process JSON file");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleRecordSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setUploading(true);
+    setUploadMessage("");
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/monitor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(recordForm),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(result.message || `Request failed with status ${response.status}`);
+
+      setUploadMessage("Monitoring record processed successfully.");
+      setRecordForm({ api_name: "", response_time_ms: 0, status_code: 200, records_returned: 0 });
+      setPage(1);
+      await loadAlerts();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Unable to submit monitoring record");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   const criticalCount = useMemo(() => alerts.filter((alert) => alert.severity === "CRITICAL").length, [alerts]);
   const warningCount = useMemo(() => alerts.filter((alert) => alert.severity === "WARNING").length, [alerts]);
   const apiCount = useMemo(() => new Set(alerts.map((alert) => alert.api_name)).size, [alerts]);
@@ -106,7 +183,20 @@ function App() {
       </aside>
 
       <main className="main-content">
-        <header className="topbar"><div><p className="eyebrow">Operations / Alert center</p><h1>Keep every API in sight.</h1><p className="subtitle">Real-time anomaly detection and AI-guided response insights.</p></div><button className="refresh-button" onClick={loadAlerts} disabled={loading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh</button></header>
+        <header className="topbar"><div><p className="eyebrow">Operations / Alert center</p><h1>Keep every API in sight.</h1><p className="subtitle">Real-time anomaly detection and AI-guided response insights.</p></div><div className="topbar-actions"><input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleJsonUpload} hidden /><button className="upload-button" onClick={() => fileInputRef.current?.click()} disabled={uploading}><Upload size={16} /> {uploading ? "Processing..." : "Upload JSON"}</button><button className="refresh-button" onClick={loadAlerts} disabled={loading || uploading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh</button></div></header>
+
+        {uploadMessage && <div className="upload-success"><CheckCircle2 size={16} /> {uploadMessage}</div>}
+
+        <form className="record-form" onSubmit={handleRecordSubmit}>
+          <div className="record-form-heading"><div><h2>Add single observation</h2><p>Send one API response directly into the monitoring pipeline.</p></div><span>POST /monitor</span></div>
+          <div className="record-fields">
+            <label>API name<input required value={recordForm.api_name} onChange={(event) => setRecordForm({ ...recordForm, api_name: event.target.value })} placeholder="AppointmentAPI" /></label>
+            <label>Response time (ms)<input required type="number" min="0" step="any" value={recordForm.response_time_ms} onChange={(event) => setRecordForm({ ...recordForm, response_time_ms: Number(event.target.value) })} /></label>
+            <label>Status code<input required type="number" min="100" max="599" step="1" value={recordForm.status_code} onChange={(event) => setRecordForm({ ...recordForm, status_code: Number(event.target.value) })} /></label>
+            <label>Records returned<input required type="number" min="0" step="1" value={recordForm.records_returned} onChange={(event) => setRecordForm({ ...recordForm, records_returned: Number(event.target.value) })} /></label>
+            <button className="submit-record" type="submit" disabled={uploading}><Activity size={16} /> {uploading ? "Processing..." : "Submit observation"}</button>
+          </div>
+        </form>
 
         <section className="stat-grid">
           <StatCard icon={<ShieldAlert />} label="Active alerts" value={total} tone="purple" detail="Needs attention" />
