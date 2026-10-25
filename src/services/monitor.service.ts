@@ -7,6 +7,8 @@ import {
 import { saveMonitoringBatch } from "../repositories/monitoring.repository";
 import { saveAIExplanation } from "../repositories/alert.repository";
 import type { MonitorRecord } from "../schemas/monitor.schema";
+import { sendAlertEmail } from "../notifications/email.notifier";
+import { getNotificationSettings } from "../config/notification.config";
 
 export interface MonitoringProcessingSummary {
   records: MonitorRecord[];
@@ -52,6 +54,26 @@ export async function processMonitoringRecords(
 
     const generated = await generateAIAlert(records[index], result);
     await saveAIExplanation(persistence.eventIds[index], generated);
+
+    const notificationSettings = getNotificationSettings();
+    const hasNewEligibleAlert = result.anomalies.some(
+      (anomaly) =>
+        (notificationSettings.min_severity === "WARNING" ||
+          anomaly.severity === "CRITICAL") &&
+        persistence.createdAlerts.some(
+          (createdAlert) =>
+            createdAlert.eventId === persistence.eventIds[index] &&
+            createdAlert.type === anomaly.type,
+        ),
+    );
+
+    if (hasNewEligibleAlert) {
+      await sendAlertEmail({
+        record: records[index],
+        detection: result,
+        generated,
+      });
+    }
 
     if (generated.source === "AI") {
       aiGenerated += 1;

@@ -16,7 +16,7 @@ Repository: [Intelligent API Monitoring & Alert System](https://github.com/Tiger
 - Prisma + SQLite persistence for observations and alerts
 - Structured AI alert explanations with deterministic fallback
 
-Email notifications are planned as an optional later step.
+Optional email notifications are supported for newly created critical alerts. They are disabled by default and require SMTP configuration.
 
 The React dashboard is available in [frontend/](./frontend/). It reads active alerts from the backend `/alerts` endpoint and supports severity, status, and API filters.
 
@@ -71,6 +71,8 @@ OPENAI_MODEL=gpt-4.1-mini
 ```
 
 Anomalies are persisted before AI generation. Normal observations do not call the LLM. If the key is missing, invalid, or the request times out, a deterministic fallback explanation is saved with `aiStatus` set to `FALLBACK`.
+
+To enable critical-alert email notifications, copy the SMTP settings from [.env.example](./.env.example) into `.env` and set `ALERT_EMAIL_ENABLED=true`. Email delivery is best-effort: a mail provider failure is logged and does not undo the monitoring database transaction.
 
 SQLite is appropriate for this assignment because it is simple to run locally and supports relational tables, migrations, and transactions. PostgreSQL would be a better choice for a high-concurrency, multi-instance production deployment.
 

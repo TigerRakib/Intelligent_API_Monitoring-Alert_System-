@@ -8,6 +8,7 @@ export interface PersistenceSummary {
   observationsSaved: number;
   alertsSaved: number;
   eventIds: number[];
+  createdAlerts: Array<{ eventId: number; type: string }>;
 }
 
 export async function saveMonitoringBatch(
@@ -30,6 +31,7 @@ export async function saveMonitoringBatch(
     const summary = await prisma.$transaction(async (transaction) => {
       let alertsSaved = 0;
       const eventIds: number[] = [];
+      const createdAlerts: Array<{ eventId: number; type: string }> = [];
 
       for (let index = 0; index < records.length; index += 1) {
         const record = records[index];
@@ -111,6 +113,7 @@ export async function saveMonitoringBatch(
               anomaly_type: alert.type,
               severity: alert.severity,
             });
+            createdAlerts.push({ eventId: event.id, type: alert.type });
           }
 
           alertsSaved += 1;
@@ -121,6 +124,7 @@ export async function saveMonitoringBatch(
         observationsSaved: records.length,
         alertsSaved,
         eventIds,
+        createdAlerts,
       };
     });
 

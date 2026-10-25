@@ -4,6 +4,7 @@ import pinoHttp from "pino-http";
 import { errorHandler } from "./middleware/error.middleware";
 import alertRoutes from "./routes/alert.routes";
 import monitorRoutes from "./routes/monitor.routes";
+import notificationRoutes from "./routes/notification.routes";
 import { logger } from "./utils/logger";
 
 const app = express();
@@ -26,6 +27,7 @@ app.get("/health", (_req, res) => {
 
 app.use(monitorRoutes);
 app.use(alertRoutes);
+app.use(notificationRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

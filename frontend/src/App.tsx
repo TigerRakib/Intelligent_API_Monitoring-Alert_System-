@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Mail,
   RefreshCw,
   Server,
   ShieldAlert,
@@ -48,6 +49,11 @@ type MonitorRecord = {
   records_returned: number;
 };
 
+type NotificationSettings = {
+  enabled: boolean;
+  min_severity: "CRITICAL" | "WARNING";
+};
+
 const API_BASE = "/api";
 
 function formatTime(value: string) {
@@ -79,6 +85,12 @@ function App() {
     status_code: 200,
     records_returned: 0,
   });
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    enabled: false,
+    min_severity: "CRITICAL",
+  });
+  const [savingNotifications, setSavingNotifications] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState("");
 
   const loadAlerts = useCallback(async () => {
     setLoading(true);
@@ -104,6 +116,38 @@ function App() {
   }, [apiName, page, severity, status]);
 
   useEffect(() => void loadAlerts(), [loadAlerts]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/settings/notifications`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load notification settings");
+        return (await response.json()) as { settings: NotificationSettings };
+      })
+      .then((data) => setNotificationSettings(data.settings))
+      .catch(() => setNotificationMessage("Notification settings are unavailable."));
+  }, []);
+
+  async function saveNotificationSettings(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingNotifications(true);
+    setNotificationMessage("");
+
+    try {
+      const response = await fetch(`${API_BASE}/settings/notifications`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(notificationSettings),
+      });
+      const result = (await response.json()) as { message?: string; settings?: NotificationSettings };
+      if (!response.ok) throw new Error(result.message || "Unable to update notification settings");
+      if (result.settings) setNotificationSettings(result.settings);
+      setNotificationMessage("Notification settings saved.");
+    } catch (settingsError) {
+      setNotificationMessage(settingsError instanceof Error ? settingsError.message : "Unable to update notification settings");
+    } finally {
+      setSavingNotifications(false);
+    }
+  }
 
   async function handleJsonUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -186,6 +230,14 @@ function App() {
         <header className="topbar"><div><p className="eyebrow">Operations / Alert center</p><h1>Keep every API in sight.</h1><p className="subtitle">Real-time anomaly detection and AI-guided response insights.</p></div><div className="topbar-actions"><input ref={fileInputRef} type="file" accept=".json,application/json" onChange={handleJsonUpload} hidden /><button className="upload-button" onClick={() => fileInputRef.current?.click()} disabled={uploading}><Upload size={16} /> {uploading ? "Processing..." : "Upload JSON"}</button><button className="refresh-button" onClick={loadAlerts} disabled={loading || uploading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh</button></div></header>
 
         {uploadMessage && <div className="upload-success"><CheckCircle2 size={16} /> {uploadMessage}</div>}
+
+        <form className="notification-panel" onSubmit={saveNotificationSettings}>
+          <div className="notification-copy"><div className="notification-icon"><Mail size={17} /></div><div><h2>Email notifications</h2><p>Control alert emails without exposing SMTP credentials.</p></div></div>
+          <label className="toggle-control"><input type="checkbox" checked={notificationSettings.enabled} onChange={(event) => setNotificationSettings({ ...notificationSettings, enabled: event.target.checked })} /><span className="toggle-slider" /> <span>{notificationSettings.enabled ? "Enabled" : "Disabled"}</span></label>
+          <label className="severity-control">Minimum severity<select value={notificationSettings.min_severity} onChange={(event) => setNotificationSettings({ ...notificationSettings, min_severity: event.target.value as NotificationSettings["min_severity"] })}><option value="CRITICAL">Critical only</option><option value="WARNING">Warnings and critical</option></select></label>
+          <button className="save-settings" type="submit" disabled={savingNotifications}>{savingNotifications ? "Saving..." : "Save settings"}</button>
+          {notificationMessage && <small className="notification-message">{notificationMessage}</small>}
+        </form>
 
         <form className="record-form" onSubmit={handleRecordSubmit}>
           <div className="record-form-heading"><div><h2>Add single observation</h2><p>Send one API response directly into the monitoring pipeline.</p></div><span>POST /monitor</span></div>
